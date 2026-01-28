@@ -1,15 +1,12 @@
-#include "board.h"
-#include "search.h"
-#include <iostream>
+#include "uci.h"
+#include "attacks.h"
+#include "rays.h"
 
 int main() {
-    Board board;
-
-    for (int turn = 0; turn < 40; ++turn) {
-        board.print();
-        Move best = Search::findBestMove(board, 2);
-        board.makeMove(best);
-    }
-    board.print();
+    initRays();
+    initAttackTables();
+    
+    UCILoop();
+    
     return 0;
 }

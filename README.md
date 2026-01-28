@@ -54,6 +54,16 @@ On Linux/macOS:
 - `search.h/cpp`: Search algorithms (Alpha-Beta).
 - `eval.h/cpp`: Static board evaluation.
 
+## Version 2.0 (In Development)
+
+### Planned Features
+
+- [ ] UCI Protocol Integration
+- [ ] Improved Evaluation Function
+- [ ] Iterative Deepening
+- [ ] Time Management
+- [ ] Code Optimization
+
 ## Version
 
 Version 1.0

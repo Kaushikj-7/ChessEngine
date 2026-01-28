@@ -10,4 +10,8 @@ add_executable(ChessEngine
     board.cpp
     move.cpp
     movegen.cpp
+    search.cpp
+    eval.cpp
+    attacks.cpp
+    rays.cpp
 )
