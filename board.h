@@ -12,7 +12,7 @@ enum Piece {
     EMPTY
 };
 
-class Move; // Forward declaration
+struct Move; // Forward declaration
 
 struct GameState {
     uint8_t castle;

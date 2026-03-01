@@ -5,6 +5,8 @@ project(ChessEngine)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+include_directories(.)
+
 add_executable(ChessEngine
     main.cpp
     board.cpp
