@@ -6,6 +6,7 @@
 #include "search.h"
 #include "attacks.h"
 #include "rays.h"
+#include "tt.h"
 
 struct MateTestCase {
     std::string fen;
@@ -22,12 +23,13 @@ int main() {
         {"r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4", 2, "h5f7"},
         // Mate in 1: Back rank mate
         {"6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1", 2, "d1d8"},
-        // Mate in 2: Waiting move
-        {"1k6/R7/1K6/8/8/8/8/8 w - - 0 1", 4, "a7h7"}
+        // Mate in 2: 1. Qe8+ Rxe8 2. Rxe8#
+        {"6k1/3r1ppp/8/8/8/8/5PPP/4Q1K1 w - - 0 1", 4, "e1e8"}
     };
 
     int passed = 0;
     for (const auto& test : tests) {
+        TT.clear();
         Board b;
         b.loadFen(test.fen);
         

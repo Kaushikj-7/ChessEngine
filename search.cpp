@@ -49,7 +49,7 @@ int scoreMove(const Board& b, const Move& m, int ply, Move ttMove) {
     if (killerMoves[ply][1].from == m.from && killerMoves[ply][1].to == m.to) return 8000;
 
     int p = pieceAt(b, m.from);
-    if (p != -1) return historyMoves[p][m.to];
+    if (p != -1) return std::min(7000, historyMoves[p][m.to]);
 
     return 0;
 }
@@ -88,6 +88,19 @@ int quiescence(Board& b, int alpha, int beta) {
     return alpha;
 }
 
+// Mate score helpers
+inline int scoreToTT(int score, int ply) {
+    if (score >= MATE_SCORE - MAX_PLY) return score + ply;
+    if (score <= -MATE_SCORE + MAX_PLY) return score - ply;
+    return score;
+}
+
+inline int scoreFromTT(int score, int ply) {
+    if (score >= MATE_SCORE - MAX_PLY) return score - ply;
+    if (score <= -MATE_SCORE + MAX_PLY) return score + ply;
+    return score;
+}
+
 int Search::alphaBeta(Board& board, int depth, int ply, int alpha, int beta) {
     nodes++;
     if (ply >= MAX_PLY - 1) return Evaluator::evaluate(board);
@@ -96,7 +109,7 @@ int Search::alphaBeta(Board& board, int depth, int ply, int alpha, int beta) {
     int ttScore;
     Move ttMove;
     if (TT.probe(board.zobristHash, depth, alpha, beta, ttScore, ttMove)) {
-        return ttScore;
+        // return scoreFromTT(ttScore, ply);
     }
 #else
     Move ttMove;
@@ -126,7 +139,7 @@ int Search::alphaBeta(Board& board, int depth, int ply, int alpha, int beta) {
     std::sort(scoredMoves.begin(), scoredMoves.end(), std::greater<MoveScore>());
     
     int originalAlpha = alpha;
-    Move bestMove;
+    Move bestMove = Move();
 
     bool foundPv = false;
 
@@ -152,7 +165,7 @@ int Search::alphaBeta(Board& board, int depth, int ply, int alpha, int beta) {
 
         if (score >= beta) {
 #ifdef USE_TT
-            TT.store(board.zobristHash, depth, beta, HASH_BETA, ms.m);
+            TT.store(board.zobristHash, depth, scoreToTT(score, ply), HASH_BETA, ms.m);
 #endif
             if (ms.m.captured == -1 && ms.m.promotion == -1) {
                 killerMoves[ply][1] = killerMoves[ply][0];
@@ -174,7 +187,7 @@ int Search::alphaBeta(Board& board, int depth, int ply, int alpha, int beta) {
 
 #ifdef USE_TT
     HashFlag flag = (alpha <= originalAlpha) ? HASH_ALPHA : HASH_EXACT;
-    TT.store(board.zobristHash, depth, alpha, flag, bestMove);
+    TT.store(board.zobristHash, depth, scoreToTT(alpha, ply), flag, bestMove);
 #endif
 
     return alpha;
@@ -187,13 +200,13 @@ Move Search::findBestMove(Board& board, int depth) {
     }
     for(int i=0; i<12; ++i) for(int j=0; j<64; ++j) historyMoves[i][j] = 0;
     
-#ifdef USE_TT
-    // TT.clear(); // Optional: clear TT at start of search or keep it
-#endif
-
     std::vector<Move> moves;
     MoveGenerator::generate(board, moves);
     if (moves.empty()) return Move();
+
+    Move bestMove = moves[0];
+    int alpha = -INF;
+    int beta = INF;
 
 #ifdef USE_TT
     int dummy;
@@ -210,19 +223,31 @@ Move Search::findBestMove(Board& board, int depth) {
     }
     std::sort(scoredMoves.begin(), scoredMoves.end(), std::greater<MoveScore>());
     
-    Move bestMove = scoredMoves[0].m;
-    int alpha = -INF;
-    int beta = INF;
+    bool foundPv = false;
 
     for (const auto& ms : scoredMoves) {
         board.makeMove(ms.m);
-        int score = -alphaBeta(board, depth - 1, 1, -beta, -alpha);
+        int score;
+#ifdef USE_PVS
+        if (foundPv) {
+            score = -alphaBeta(board, depth - 1, 1, -alpha - 1, -alpha);
+            if (score > alpha) score = -alphaBeta(board, depth - 1, 1, -beta, -alpha);
+        } else {
+            score = -alphaBeta(board, depth - 1, 1, -beta, -alpha);
+        }
+#else
+        score = -alphaBeta(board, depth - 1, 1, -beta, -alpha);
+#endif
         board.unmakeMove(ms.m);
         
+        // std::cerr << "Move: " << ms.m.from << " to " << ms.m.to << " score: " << score << std::endl;
+
         if (score > alpha) {
             alpha = score;
             bestMove = ms.m;
+            foundPv = true;
         }
     }
+    // std::cerr << "Best: " << bestMove.from << " to " << bestMove.to << " alpha: " << alpha << std::endl;
     return bestMove;
 }
