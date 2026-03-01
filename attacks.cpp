@@ -75,9 +75,9 @@ static Bitboard rayAttacks(int sq, int dir, Bitboard occ) {
 
     int blockerSq;
     if (dir == N || dir == NE || dir == E || dir == NW)
-        blockerSq = __builtin_ctzll(blockers);
+        blockerSq = get_lsb(blockers);
     else
-        blockerSq = 63 - __builtin_clzll(blockers);
+        blockerSq = get_msb(blockers);
 
     return ray ^ Rays[dir][blockerSq];
 }

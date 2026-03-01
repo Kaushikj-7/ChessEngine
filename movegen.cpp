@@ -4,7 +4,7 @@
 #include <iostream> 
 
 // Helper for CLZ/CTZ compatibility across compilers if needed
-// For g++, __builtin_ctzll is fine.
+// For g++, get_lsb is fine.
 
 // Forward declarations
 Bitboard attackersTo(int sq, const Board& b, bool byWhite, Bitboard occ);
@@ -53,7 +53,7 @@ void detectPins(const Board& b, bool white, Bitboard& pinned, Bitboard& pinRay) 
 
     int p = white ? WK : BK;
     if (b.pieces[p] == 0) return;
-    int ksq = __builtin_ctzll(b.pieces[p]);
+    int ksq = get_lsb(b.pieces[p]);
     
     Bitboard occ = b.allOcc();
 
@@ -66,17 +66,17 @@ void detectPins(const Board& b, bool white, Bitboard& pinned, Bitboard& pinRay) 
 
         int first;
         if (dirs[d] == N || dirs[d] == NE || dirs[d] == E || dirs[d] == NW)
-            first = __builtin_ctzll(blockers);
+            first = get_lsb(blockers);
         else 
-            first = 63 - __builtin_clzll(blockers);
+            first = get_msb(blockers);
 
         Bitboard behind = Rays[dirs[d]][first] & occ;
         if (!behind) continue; 
 
         int second;
         if (dirs[d] == N || dirs[d] == NE || dirs[d] == E || dirs[d] == NW)
-             second = __builtin_ctzll(behind);
-        else second = 63 - __builtin_clzll(behind);
+             second = get_lsb(behind);
+        else second = get_msb(behind);
 
         int dir = dirs[d];
         bool diag = (dir == NE || dir == NW || dir == SE || dir == SW);
@@ -122,7 +122,7 @@ static void genRooks(const Board& b, std::vector<Move>& moves, Bitboard pinned, 
     Bitboard occ = b.allOcc();
 
     while (rooks) {
-        int from = __builtin_ctzll(rooks);
+        int from = get_lsb(rooks);
         rooks &= rooks - 1;
 
         Bitboard mask = validMask;
@@ -131,7 +131,7 @@ static void genRooks(const Board& b, std::vector<Move>& moves, Bitboard pinned, 
         Bitboard targets = rookAttacks(from, occ) & ~own & mask;
 
         while (targets) {
-            int to = __builtin_ctzll(targets);
+            int to = get_lsb(targets);
             int cap = (opp & (1ULL << to)) ? pieceAt(b, to) : -1;
             moves.emplace_back(from, to, cap);
             targets &= targets - 1;
@@ -147,7 +147,7 @@ static void genBishops(const Board& b, std::vector<Move>& moves, Bitboard pinned
     Bitboard occ = b.allOcc();
 
     while (bishops) {
-        int from = __builtin_ctzll(bishops);
+        int from = get_lsb(bishops);
         bishops &= bishops - 1;
 
         Bitboard mask = validMask;
@@ -156,7 +156,7 @@ static void genBishops(const Board& b, std::vector<Move>& moves, Bitboard pinned
         Bitboard targets = bishopAttacks(from, occ) & ~own & mask;
 
         while (targets) {
-            int to = __builtin_ctzll(targets);
+            int to = get_lsb(targets);
             int cap = (opp & (1ULL << to)) ? pieceAt(b, to) : -1;
             moves.emplace_back(from, to, cap);
             targets &= targets - 1;
@@ -172,7 +172,7 @@ static void genQueens(const Board& b, std::vector<Move>& moves, Bitboard pinned,
     Bitboard occ = b.allOcc();
 
     while (queens) {
-        int from = __builtin_ctzll(queens);
+        int from = get_lsb(queens);
         queens &= queens - 1;
 
         Bitboard mask = validMask;
@@ -181,7 +181,7 @@ static void genQueens(const Board& b, std::vector<Move>& moves, Bitboard pinned,
         Bitboard targets = queenAttacks(from, occ) & ~own & mask;
 
         while (targets) {
-            int to = __builtin_ctzll(targets);
+            int to = get_lsb(targets);
             int cap = (opp & (1ULL << to)) ? pieceAt(b, to) : -1;
             moves.emplace_back(from, to, cap);
             targets &= targets - 1;
@@ -198,11 +198,11 @@ static void genKnights(const Board& b, std::vector<Move>& moves, Bitboard pinned
     knights &= ~pinned; 
 
     while (knights) {
-        int from = __builtin_ctzll(knights);
+        int from = get_lsb(knights);
         Bitboard targets = KnightAttacks[from] & ~own & validMask;
 
         while (targets) {
-            int to = __builtin_ctzll(targets);
+            int to = get_lsb(targets);
             int cap = (opp & (1ULL << to)) ? pieceAt(b, to) : -1;
             moves.emplace_back(from, to, cap);
             targets &= targets - 1;
@@ -216,7 +216,7 @@ static void genKing(const Board& b, std::vector<Move>& moves) {
     Bitboard king = b.pieces[p];
     if (!king) return; 
 
-    int from = __builtin_ctzll(king);
+    int from = get_lsb(king);
 
     Bitboard own = b.whiteToMove ? b.whiteOcc() : b.blackOcc();
     Bitboard opp = b.whiteToMove ? b.blackOcc() : b.whiteOcc();
@@ -228,7 +228,7 @@ static void genKing(const Board& b, std::vector<Move>& moves) {
     Bitboard targets = KingAttacks[from] & ~own;
 
     while (targets) {
-        int to = __builtin_ctzll(targets);
+        int to = get_lsb(targets);
         if (!attackersTo(to, b, !b.whiteToMove, occWithoutKing)) {
              int cap = (opp & (1ULL << to)) ? pieceAt(b, to) : -1;
              moves.emplace_back(from, to, cap);
@@ -298,7 +298,7 @@ static void genPawns(const Board& b, std::vector<Move>& moves, Bitboard pinned, 
         Bitboard validPush = singlePush & validMask;
 
         while (validPush) {
-            int to = __builtin_ctzll(validPush);
+            int to = get_lsb(validPush);
             int from = to - 8;
             bool isPinned = (pinned & (1ULL << from));
             if (!isPinned || (pinRay & (1ULL << to))) {
@@ -310,7 +310,7 @@ static void genPawns(const Board& b, std::vector<Move>& moves, Bitboard pinned, 
         // Double Push (Rank 2 is 8-15. Rank 3 is 16-23. Rank 4 is 24-31)
         Bitboard doublePush = ((singlePush & (0xFFULL << 16)) << 8) & empty & validMask;
         while (doublePush) {
-             int to = __builtin_ctzll(doublePush);
+             int to = get_lsb(doublePush);
              int from = to - 16;
              bool isPinned = (pinned & (1ULL << from));
              if (!isPinned || (pinRay & (1ULL << to)))
@@ -324,7 +324,7 @@ static void genPawns(const Board& b, std::vector<Move>& moves, Bitboard pinned, 
 
         Bitboard leftCap = ((pawns & notA) << 7) & enemy & validMask;
         while(leftCap) {
-             int to = __builtin_ctzll(leftCap);
+             int to = get_lsb(leftCap);
              int from = to - 7;
              bool isPinned = (pinned & (1ULL << from));
              if (!isPinned || (pinRay & (1ULL << to)))
@@ -334,7 +334,7 @@ static void genPawns(const Board& b, std::vector<Move>& moves, Bitboard pinned, 
 
         Bitboard rightCap = ((pawns & notH) << 9) & enemy & validMask;
         while(rightCap) {
-             int to = __builtin_ctzll(rightCap);
+             int to = get_lsb(rightCap);
              int from = to - 9;
              bool isPinned = (pinned & (1ULL << from));
              if (!isPinned || (pinRay & (1ULL << to)))
@@ -347,7 +347,7 @@ static void genPawns(const Board& b, std::vector<Move>& moves, Bitboard pinned, 
              int ep = b.enPassantSq; 
              Bitboard epAttacks = BlackPawnAttacks[ep] & pawns;
              while (epAttacks) {
-                  int from = __builtin_ctzll(epAttacks);
+                  int from = get_lsb(epAttacks);
                   int capSq = ep - 8;
                   
                   Bitboard newOcc = b.allOcc();
@@ -355,7 +355,7 @@ static void genPawns(const Board& b, std::vector<Move>& moves, Bitboard pinned, 
                   newOcc ^= (1ULL << capSq); 
                   newOcc |= (1ULL << ep);    
 
-                  int ksq = __builtin_ctzll(b.pieces[WK]);
+                  int ksq = get_lsb(b.pieces[WK]);
                   Bitboard rooksQueens = b.pieces[BR] | b.pieces[BQ];
                   Bitboard bishopsQueens = b.pieces[BB] | b.pieces[BQ];
                   
@@ -376,7 +376,7 @@ static void genPawns(const Board& b, std::vector<Move>& moves, Bitboard pinned, 
         Bitboard singlePush = (pawns >> 8) & empty;
         Bitboard validPush = singlePush & validMask;
         while (validPush) {
-            int to = __builtin_ctzll(validPush);
+            int to = get_lsb(validPush);
             int from = to + 8;
             bool isPinned = (pinned & (1ULL << from));
             if (!isPinned || (pinRay & (1ULL << to)))
@@ -387,7 +387,7 @@ static void genPawns(const Board& b, std::vector<Move>& moves, Bitboard pinned, 
         // Black Double Push (Rank 7 is 48-55. Rank 6 is 40-47. Rank 5 is 32-39)
         Bitboard doublePush = ((singlePush & (0xFFULL << 40)) >> 8) & empty & validMask;
         while (doublePush) {
-             int to = __builtin_ctzll(doublePush);
+             int to = get_lsb(doublePush);
              int from = to + 16;
              bool isPinned = (pinned & (1ULL << from));
              if (!isPinned || (pinRay & (1ULL << to)))
@@ -400,7 +400,7 @@ static void genPawns(const Board& b, std::vector<Move>& moves, Bitboard pinned, 
 
         Bitboard leftCap = ((pawns & notA) >> 9) & enemy & validMask;
         while(leftCap) {
-             int to = __builtin_ctzll(leftCap);
+             int to = get_lsb(leftCap);
              int from = to + 9;
              bool isPinned = (pinned & (1ULL << from));
              if (!isPinned || (pinRay & (1ULL << to)))
@@ -410,7 +410,7 @@ static void genPawns(const Board& b, std::vector<Move>& moves, Bitboard pinned, 
 
         Bitboard rightCap = ((pawns & notH) >> 7) & enemy & validMask; 
         while(rightCap) {
-             int to = __builtin_ctzll(rightCap);
+             int to = get_lsb(rightCap);
              int from = to + 7;
              bool isPinned = (pinned & (1ULL << from));
              if (!isPinned || (pinRay & (1ULL << to)))
@@ -423,7 +423,7 @@ static void genPawns(const Board& b, std::vector<Move>& moves, Bitboard pinned, 
              int ep = b.enPassantSq; 
              Bitboard epAttacks = WhitePawnAttacks[ep] & pawns;
              while (epAttacks) {
-                  int from = __builtin_ctzll(epAttacks);
+                  int from = get_lsb(epAttacks);
                   int capSq = ep + 8;
                   
                   Bitboard newOcc = b.allOcc();
@@ -431,7 +431,7 @@ static void genPawns(const Board& b, std::vector<Move>& moves, Bitboard pinned, 
                   newOcc ^= (1ULL << capSq);
                   newOcc |= (1ULL << ep);
 
-                  int ksq = __builtin_ctzll(b.pieces[BK]);
+                  int ksq = get_lsb(b.pieces[BK]);
                   Bitboard rooksQueens = b.pieces[WR] | b.pieces[WQ];
                   Bitboard bishopsQueens = b.pieces[WB] | b.pieces[WQ];
                   
@@ -454,7 +454,7 @@ void MoveGenerator::generate(const Board& b, std::vector<Move>& moves) {
     
     // King location
     int p = b.whiteToMove ? WK : BK;
-    int ksq = __builtin_ctzll(b.pieces[p]);
+    int ksq = get_lsb(b.pieces[p]);
 
     // Attackers to King (Checkers)
     Bitboard checkers = attackersTo(ksq, b, !b.whiteToMove, b.allOcc());
@@ -466,14 +466,14 @@ void MoveGenerator::generate(const Board& b, std::vector<Move>& moves) {
 
     // Valid Mask (Step 5)
     Bitboard validMask = ~0ULL;
-    int numCheckers = __builtin_popcountll(checkers);
+    int numCheckers = count_bits(checkers);
 
     if (numCheckers > 1) {
         // Double Check: Only King moves allowed
         validMask = 0;
     } else if (numCheckers == 1) {
         // Single Check: Capture or Block
-        int cSq = __builtin_ctzll(checkers);
+        int cSq = get_lsb(checkers);
         Bitboard checkerBit = (1ULL << cSq);
         
         // Try to find ray
@@ -506,7 +506,7 @@ void MoveGenerator::generate(const Board& b, std::vector<Move>& moves) {
 // Keep Check function for external query if needed
 bool MoveGenerator::inCheck(const Board& b, bool white) {
      int p = white ? WK : BK;
-     int ksq = __builtin_ctzll(b.pieces[p]);
+     int ksq = get_lsb(b.pieces[p]);
      return attackersTo(ksq, b, !white) != 0;
 }
 

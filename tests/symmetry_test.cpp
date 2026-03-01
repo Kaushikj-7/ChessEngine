@@ -22,7 +22,7 @@ Board flipBoard(const Board& b) {
         // White pieces in original (p) -> Black pieces in flipped (p+6)
         Bitboard whiteBb = b.pieces[p];
         while (whiteBb) {
-            int sq = __builtin_ctzll(whiteBb);
+            int sq = get_lsb(whiteBb);
             set_bit(flipped.pieces[p + 6], mirror(sq));
             whiteBb &= whiteBb - 1;
         }
@@ -30,7 +30,7 @@ Board flipBoard(const Board& b) {
         // Black pieces in original (p+6) -> White pieces in flipped (p)
         Bitboard blackBb = b.pieces[p + 6];
         while (blackBb) {
-            int sq = __builtin_ctzll(blackBb);
+            int sq = get_lsb(blackBb);
             set_bit(flipped.pieces[p], mirror(sq));
             blackBb &= blackBb - 1;
         }

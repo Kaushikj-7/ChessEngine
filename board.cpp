@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <cmath>
 
 int pieceAt(const Board& b, int sq) {
     Bitboard bit = 1ULL << sq;
@@ -22,7 +23,7 @@ uint64_t Board::computeHash() const {
     for (int p = 0; p < 12; ++p) {
         Bitboard bb = pieces[p];
         while (bb) {
-            int sq = __builtin_ctzll(bb);
+            int sq = get_lsb(bb);
             h ^= PieceKeys[p][sq];
             bb &= bb - 1;
         }
@@ -142,7 +143,7 @@ void Board::makeMove(const Move& m) {
     // En Passant state update
     int newEp = -1;
     if (movedPiece == WP || movedPiece == BP) {
-        if (abs(m.from - m.to) == 16) {
+        if (std::abs(m.from - m.to) == 16) {
             newEp = (m.from + m.to) / 2;
         }
     }

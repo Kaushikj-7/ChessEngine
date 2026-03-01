@@ -27,6 +27,7 @@ add_executable(PerftTest
     eval.cpp
     attacks.cpp
     rays.cpp
+    tt.cpp
     zobrist.cpp
 )
 
@@ -38,6 +39,7 @@ add_executable(SymmetryTest
     eval.cpp
     attacks.cpp
     rays.cpp
+    tt.cpp
     zobrist.cpp
 )
 

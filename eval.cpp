@@ -105,7 +105,7 @@ int evaluatePieceFuncPST(int pcType, Bitboard bb, bool white) {
     }
 
     while (bb) {
-        int sq = __builtin_ctzll(bb);
+        int sq = get_lsb(bb);
         int pstScore = 0;
         if (white) {
             pstScore = table[sq];

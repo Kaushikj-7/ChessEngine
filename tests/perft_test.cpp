@@ -23,7 +23,7 @@ long long perft(Board& b, int depth) {
         // For strictly legal movegen, we trust generate() but we can assert !inCheck if we want.
         
         // Check if king is in check (illegal move made)
-        // int kingSq = __builtin_ctzll(b.pieces[!b.whiteToMove ? WK : BK]); // The side that just moved
+        // int kingSq = get_lsb(b.pieces[!b.whiteToMove ? WK : BK]); // The side that just moved
         // if (MoveGenerator::inCheck(b, !b.whiteToMove)) {
         //      std::cout << "Illegal move generated!\n";
         // }

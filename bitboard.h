@@ -4,9 +4,43 @@
 #include <cstdint>
 #include <iostream>
 
+#ifdef _MSC_VER
+#include <intrin.h>
+#pragma intrinsic(_BitScanForward64)
+#pragma intrinsic(_BitScanReverse64)
+#endif
+
 typedef uint64_t Bitboard;
 
-// Bit manipulation macros
+// Bit manipulation
+inline int get_lsb(Bitboard bb) {
+#ifdef _MSC_VER
+    unsigned long index;
+    _BitScanForward64(&index, bb);
+    return (int)index;
+#else
+    return __builtin_ctzll(bb);
+#endif
+}
+
+inline int get_msb(Bitboard bb) {
+#ifdef _MSC_VER
+    unsigned long index;
+    _BitScanReverse64(&index, bb);
+    return (int)index;
+#else
+    return 63 - __builtin_clzll(bb);
+#endif
+}
+
+inline int count_bits(Bitboard bb) {
+#ifdef _MSC_VER
+    return (int)__popcnt64(bb);
+#else
+    return __builtin_popcountll(bb);
+#endif
+}
+
 #define set_bit(bb, sq) ((bb) |= (1ULL << (sq)))
 #define get_bit(bb, sq) ((bb) & (1ULL << (sq)))
 #define pop_bit(bb, sq) ((bb) &= ~(1ULL << (sq)))
