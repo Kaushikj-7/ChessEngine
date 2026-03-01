@@ -20,7 +20,7 @@ add_executable(ChessEngine
 )
 
 add_executable(PerftTest
-    perft_test.cpp
+    tests/perft_test.cpp
     board.cpp
     move.cpp
     movegen.cpp
@@ -31,7 +31,7 @@ add_executable(PerftTest
 )
 
 add_executable(SymmetryTest
-    symmetry_test.cpp
+    tests/symmetry_test.cpp
     board.cpp
     move.cpp
     movegen.cpp
@@ -42,7 +42,7 @@ add_executable(SymmetryTest
 )
 
 add_executable(MateTest
-    mate_test.cpp
+    tests/mate_test.cpp
     board.cpp
     move.cpp
     movegen.cpp
