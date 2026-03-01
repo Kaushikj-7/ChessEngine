@@ -1,0 +1,10 @@
+*.exe
+*.o
+*.obj
+build/
+.vscode/
+.cph/
+benchmark_script.txt
+perft.exe
+symmetry.exe
+mate.exe

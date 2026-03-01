@@ -36,7 +36,7 @@ long long perft(Board& b, int depth) {
 
 int main() {
     initRays();
-    initAttacks(); // Ensure these are initialized
+    initAttackTables(); // Ensure these are initialized
 
     Board b; // Start pos
     // Manually force start pos if constructor doesn't doing it correctly (assuming it does based on v2)

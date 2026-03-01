@@ -17,6 +17,7 @@ class Move; // Forward declaration
 struct GameState {
     uint8_t castle;
     int enPassantSq;
+    uint64_t zobristHash;
 };
 
 class Board {
@@ -27,6 +28,7 @@ public:
     // State
     uint8_t castle; // bit 0: WK, 1: WQ, 2: BK, 3: BQ
     int enPassantSq; // -1 if none
+    uint64_t zobristHash;
     std::vector<GameState> history;
 
     Board();
@@ -43,6 +45,8 @@ public:
     }
 
     void print() const;
+    void loadFen(const std::string& fen);
+    uint64_t computeHash() const;
     void makeMove(const Move& m);
     void unmakeMove(const Move& m);
 

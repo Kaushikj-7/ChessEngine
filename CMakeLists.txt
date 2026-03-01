@@ -14,4 +14,42 @@ add_executable(ChessEngine
     eval.cpp
     attacks.cpp
     rays.cpp
+    tt.cpp
+    zobrist.cpp
+    uci.cpp
+)
+
+add_executable(PerftTest
+    perft_test.cpp
+    board.cpp
+    move.cpp
+    movegen.cpp
+    eval.cpp
+    attacks.cpp
+    rays.cpp
+    zobrist.cpp
+)
+
+add_executable(SymmetryTest
+    symmetry_test.cpp
+    board.cpp
+    move.cpp
+    movegen.cpp
+    eval.cpp
+    attacks.cpp
+    rays.cpp
+    zobrist.cpp
+)
+
+add_executable(MateTest
+    mate_test.cpp
+    board.cpp
+    move.cpp
+    movegen.cpp
+    search.cpp
+    eval.cpp
+    attacks.cpp
+    rays.cpp
+    tt.cpp
+    zobrist.cpp
 )

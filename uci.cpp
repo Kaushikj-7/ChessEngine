@@ -8,6 +8,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <chrono>
 
 void parsePosition(std::istringstream& is, Board& b) {
     std::string token, fen;
@@ -93,7 +94,17 @@ void parseGo(std::istringstream& is, Board& b) {
     }
 
     // Run search
+    Search::nodes = 0;
+    auto start = std::chrono::high_resolution_clock::now();
     Move best = Search::findBestMove(b, depth);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> diff = end - start;
+    
+    long long nodes = Search::nodes;
+    double seconds = diff.count();
+    long long nps = (seconds > 0) ? (long long)(nodes / seconds) : 0;
+
+    std::cout << "info depth " << depth << " nodes " << nodes << " nps " << nps << " time " << (int)(seconds * 1000) << "\n";
     
     // Output format: e2e4 or a7a8q
     std::string promo = "";

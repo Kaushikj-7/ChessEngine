@@ -1,6 +1,9 @@
 #include "board.h"
 #include "move.h"
+#include "zobrist.h"
 #include <iostream>
+#include <sstream>
+#include <string>
 
 int pieceAt(const Board& b, int sq) {
     Bitboard bit = 1ULL << sq;
@@ -11,40 +14,83 @@ int pieceAt(const Board& b, int sq) {
 }
 
 Board::Board() {
-    // Empty board
+    loadFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+}
+
+uint64_t Board::computeHash() const {
+    uint64_t h = 0;
+    for (int p = 0; p < 12; ++p) {
+        Bitboard bb = pieces[p];
+        while (bb) {
+            int sq = __builtin_ctzll(bb);
+            h ^= PieceKeys[p][sq];
+            bb &= bb - 1;
+        }
+    }
+    if (whiteToMove) h ^= SideKey;
+    h ^= CastleKeys[castle];
+    if (enPassantSq != -1) h ^= EpKeys[enPassantSq];
+    return h;
+}
+
+void Board::loadFen(const std::string& fen) {
+    // Clear pieces
     for (int i = 0; i < 12; ++i) pieces[i] = 0;
-    
-    // Standard Start Position (Little-endian bitboards)
-    // WP rank 2 (8-15)
-    pieces[WP] = 0x000000000000FF00ULL;
-    // WR corners (0, 7)
-    pieces[WR] = 0x0000000000000081ULL;
-    // WN (1, 6)
-    pieces[WN] = 0x0000000000000042ULL;
-    // WB (2, 5)
-    pieces[WB] = 0x0000000000000024ULL;
-    // WQ (3)
-    pieces[WQ] = 0x0000000000000008ULL;
-    // WK (4)
-    pieces[WK] = 0x0000000000000010ULL;
+    history.clear();
 
-    // BP rank 7 (48-55)
-    pieces[BP] = 0x00FF000000000000ULL;
-    // BR (56, 63)
-    pieces[BR] = 0x8100000000000000ULL;
-    // BN (57, 62)
-    pieces[BN] = 0x4200000000000000ULL;
-    // BB (58, 61)
-    pieces[BB] = 0x2400000000000000ULL;
-    // BQ (59)
-    pieces[BQ] = 0x0800000000000000ULL;
-    // BK (60)
-    pieces[BK] = 0x1000000000000000ULL;
+    std::istringstream ss(fen);
+    std::string pos, side, castling, enp, half, full;
+    ss >> pos >> side >> castling >> enp >> half >> full;
 
-    whiteToMove = true;
+    // 1. Position
+    int rank = 7, file = 0;
+    for (char c : pos) {
+        if (c == '/') {
+            rank--;
+            file = 0;
+        } else if (isdigit(c)) {
+            file += (c - '0');
+        } else {
+            int sq = rank * 8 + file;
+            int pc = -1;
+            switch(c) {
+                case 'P': pc = WP; break;
+                case 'N': pc = WN; break;
+                case 'B': pc = WB; break;
+                case 'R': pc = WR; break;
+                case 'Q': pc = WQ; break;
+                case 'K': pc = WK; break;
+                case 'p': pc = BP; break;
+                case 'n': pc = BN; break;
+                case 'b': pc = BB; break;
+                case 'r': pc = BR; break;
+                case 'q': pc = BQ; break;
+                case 'k': pc = BK; break;
+            }
+            if (pc != -1) set_bit(pieces[pc], sq);
+            file++;
+        }
+    }
+
+    // 2. Side to move
+    whiteToMove = (side == "w");
+
+    // 3. Castling
+    castle = 0;
+    if (castling.find('K') != std::string::npos) castle |= 1;
+    if (castling.find('Q') != std::string::npos) castle |= 2;
+    if (castling.find('k') != std::string::npos) castle |= 4;
+    if (castling.find('q') != std::string::npos) castle |= 8;
+
+    // 4. En passant
     enPassantSq = -1;
-    castle = 0b1111; 
-    history.reserve(256);
+    if (enp != "-") {
+        int f = enp[0] - 'a';
+        int r = enp[1] - '1';
+        enPassantSq = r * 8 + f;
+    }
+
+    zobristHash = computeHash();
 }
 
 void Board::print() const {
@@ -66,25 +112,28 @@ void Board::print() const {
     std::cout << "   Castle: " << ((castle & 1)?"K":"-") << ((castle & 2)?"Q":"-") 
                                  << ((castle & 4)?"k":"-") << ((castle & 8)?"q":"-") << "\n";
     std::cout << "   EP: " << enPassantSq << "\n";
+    std::cout << "   Hash: " << std::hex << zobristHash << std::dec << "\n";
 }
 
 void Board::makeMove(const Move& m) {
-    history.push_back({castle, enPassantSq});
+    history.push_back({castle, enPassantSq, zobristHash});
 
     int movedPiece = pieceAt(*this, m.from);
     
+    // XOR out old castle and EP
+    zobristHash ^= CastleKeys[castle];
+    if (enPassantSq != -1) zobristHash ^= EpKeys[enPassantSq];
+
     // Updates for Castling Rights
     // If king moves, loose rights
     if (movedPiece == WK) castle &= ~0b0011;
     else if (movedPiece == BK) castle &= ~0b1100;
     
     // If rook moves or captures, loose rights
-    // From Rook
-    if (m.from == 0) castle &= ~0b0010; // WQ
-    if (m.from == 7) castle &= ~0b0001; // WK
-    if (m.from == 56) castle &= ~0b1000; // BQ
-    if (m.from == 63) castle &= ~0b0100; // BK
-    // To Rook (Capture) - if we capture a rook on its starting square, opponent loses casting right
+    if (m.from == 0) castle &= ~0b0010;
+    if (m.from == 7) castle &= ~0b0001;
+    if (m.from == 56) castle &= ~0b1000;
+    if (m.from == 63) castle &= ~0b0100;
     if (m.to == 0) castle &= ~0b0010;
     if (m.to == 7) castle &= ~0b0001;
     if (m.to == 56) castle &= ~0b1000;
@@ -99,47 +148,54 @@ void Board::makeMove(const Move& m) {
     }
     enPassantSq = newEp;
 
-    // Move Piece from Source
+    // XOR in new castle and EP
+    zobristHash ^= CastleKeys[castle];
+    if (enPassantSq != -1) zobristHash ^= EpKeys[enPassantSq];
+
+    // XOR out moved piece at from
+    zobristHash ^= PieceKeys[movedPiece][m.from];
     pop_bit(pieces[movedPiece], m.from);
 
     // Handle Capture
     if (m.captured != -1) {
         if (m.promotion == ENPASSANT) {
-            // Captured pawn is not at `to`
             int capSq = (whiteToMove) ? m.to - 8 : m.to + 8;
+            zobristHash ^= PieceKeys[m.captured][capSq];
             pop_bit(pieces[m.captured], capSq);
         } else {
-             pop_bit(pieces[m.captured], m.to);
+            zobristHash ^= PieceKeys[m.captured][m.to];
+            pop_bit(pieces[m.captured], m.to);
         }
     }
 
     // Place Piece at Destination
     if (m.promotion != -1 && m.promotion != CASTLE && m.promotion != ENPASSANT) {
-        // Promotion
+        zobristHash ^= PieceKeys[m.promotion][m.to];
         set_bit(pieces[m.promotion], m.to);
     } else {
-        // Normal Move (or Castle/EP King/Pawn move)
+        zobristHash ^= PieceKeys[movedPiece][m.to];
         set_bit(pieces[movedPiece], m.to);
     }
 
     // Special Castle Rook Move
     if (m.promotion == CASTLE) {
-        if (m.to == 6) { // WK Castles KingSide e1->g1, Rook h1->f1
-            pop_bit(pieces[WR], 7);
-            set_bit(pieces[WR], 5);
-        } else if (m.to == 2) { // WK Castles QueenSide e1->c1, Rook a1->d1
-            pop_bit(pieces[WR], 0);
-            set_bit(pieces[WR], 3);
-        } else if (m.to == 62) { // BK Castles KingSide e8->g8, Rook h8->f8
-            pop_bit(pieces[BR], 63);
-            set_bit(pieces[BR], 61);
-        } else if (m.to == 58) { // BK Castles QueenSide e8->c8, Rook a8->d8
-            pop_bit(pieces[BR], 56);
-            set_bit(pieces[BR], 59);
+        if (m.to == 6) { // h1->f1
+            zobristHash ^= PieceKeys[WR][7]; zobristHash ^= PieceKeys[WR][5];
+            pop_bit(pieces[WR], 7); set_bit(pieces[WR], 5);
+        } else if (m.to == 2) { // a1->d1
+            zobristHash ^= PieceKeys[WR][0]; zobristHash ^= PieceKeys[WR][3];
+            pop_bit(pieces[WR], 0); set_bit(pieces[WR], 3);
+        } else if (m.to == 62) { // h8->f8
+            zobristHash ^= PieceKeys[BR][63]; zobristHash ^= PieceKeys[BR][61];
+            pop_bit(pieces[BR], 63); set_bit(pieces[BR], 61);
+        } else if (m.to == 58) { // a8->d8
+            zobristHash ^= PieceKeys[BR][56]; zobristHash ^= PieceKeys[BR][59];
+            pop_bit(pieces[BR], 56); set_bit(pieces[BR], 59);
         }
     }
 
     whiteToMove = !whiteToMove;
+    zobristHash ^= SideKey;
 }
 
 void Board::unmakeMove(const Move& m) {
@@ -150,30 +206,23 @@ void Board::unmakeMove(const Move& m) {
     history.pop_back();
     castle = old.castle;
     enPassantSq = old.enPassantSq;
+    zobristHash = old.zobristHash;
 
     int movedPiece = -1;
     if (m.promotion != -1 && m.promotion != CASTLE && m.promotion != ENPASSANT) {
-        movedPiece = m.promotion; // Currently on board
+        movedPiece = m.promotion;
     } else {
-        // Determine what moved based on board state? No, piece is at m.to
-        // If Castle, movedPiece is King
-        // If EP, movedPiece is Pawn
         movedPiece = pieceAt(*this, m.to);
     }
 
-    // Remove from 'to'
     pop_bit(pieces[movedPiece], m.to);
-
-    // Restore to 'from'
     if (m.promotion != -1 && m.promotion != CASTLE && m.promotion != ENPASSANT) {
-        // Verify pawn
         int pawn = whiteToMove ? WP : BP;
         set_bit(pieces[pawn], m.from);
     } else {
         set_bit(pieces[movedPiece], m.from);
     }
 
-    // Restore Captured
     if (m.captured != -1) {
         if (m.promotion == ENPASSANT) {
             int capSq = (whiteToMove) ? m.to - 8 : m.to + 8;
@@ -183,17 +232,11 @@ void Board::unmakeMove(const Move& m) {
         }
     }
 
-    // Unmake Castle Rook Move
     if (m.promotion == CASTLE) {
-        if (m.to == 6) { // Undo h1->f1 => f1->h1
-            pop_bit(pieces[WR], 5); set_bit(pieces[WR], 7);
-        } else if (m.to == 2) { // Undo a1->d1 => d1->a1
-            pop_bit(pieces[WR], 3); set_bit(pieces[WR], 0);
-        } else if (m.to == 62) { 
-            pop_bit(pieces[BR], 61); set_bit(pieces[BR], 63);
-        } else if (m.to == 58) { 
-            pop_bit(pieces[BR], 59); set_bit(pieces[BR], 56);
-        }
+        if (m.to == 6) { pop_bit(pieces[WR], 5); set_bit(pieces[WR], 7); }
+        else if (m.to == 2) { pop_bit(pieces[WR], 3); set_bit(pieces[WR], 0); }
+        else if (m.to == 62) { pop_bit(pieces[BR], 61); set_bit(pieces[BR], 63); }
+        else if (m.to == 58) { pop_bit(pieces[BR], 59); set_bit(pieces[BR], 56); }
     }
 }
 

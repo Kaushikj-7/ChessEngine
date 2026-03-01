@@ -11,6 +11,7 @@ struct Move {
     int captured; // Piece enum (0-11) or -1/EMPTY
     int promotion; // Piece enum (0-11) or CASTLE/ENPASSANT or -1/NONE
 
+    Move() : from(-1), to(-1), captured(-1), promotion(-1) {}
     Move(int f, int t, int c = -1, int p = -1) 
         : from(f), to(t), captured(c), promotion(p) {}
 };

@@ -6,8 +6,9 @@
 
 class Search {
 public:
-    static int alphaBeta(Board& board, int depth, int alpha, int beta);
+    static int alphaBeta(Board& board, int depth, int ply, int alpha, int beta);
     static Move findBestMove(Board& board, int depth);
+    static long long nodes;
 };
 
 #endif
